@@ -1,20 +1,23 @@
 const bodyParser = require("body-parser");
 const express = require("express");
 const app = express();
-const PORT = 8080; // default port 8080
+const PORT = 8080;
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 
+// Listen to PORT on 8080
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
 
+// Database for the creation of all URLs
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
 };
 
+// Generate random characters for short URL
 function generateRandomString() {
   let randomCharacters = '';
   let char = '0123456789abcdefghijklmnopqrstuvwxyz';
@@ -24,45 +27,53 @@ function generateRandomString() {
   }
   return randomCharacters;
 }
-generateRandomString();
 
+// Landing on index page, prints "Hello"
 app.get("/", (req, res) => {
   res.send("Hello!");
 });
 
+// Convert to JSON string
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
 
+// Landing on /hello page, prints "Hello World"
 app.get("/hello", (req, res) => {
   res.send("<html><body>Hello <b>World</b></body></html>\n");
 });
 
-app.get("/set", (req, res) => {
-  const a = 1;
-  res.send(`a = ${a}`);
-});
-  
-app.get("/fetch", (req, res) => {
-  const a = 1;
-  res.send(`a = ${a}`);
-});
-
+// Landing on /urls/new, displays template of urls_new.ejs
 app.get("/urls/new", (req, res) => {
   res.render("urls_new");
 });
 
+// Generate short URL based on the function generateRandomString(), then redirect.
 app.post("/urls", (req, res) => {
-  console.log(req.body);  // Log the POST request body to the console
-  res.send("Ok");         // Respond with 'Ok' (we will replace this)
+  // Log the POST request body to the console
+  console.log(req.body);
+  let shortUrl = generateRandomString();
+  urlDatabase[shortUrl] = req.body.longURL;
+  console.log(urlDatabase);
+
+  // Redirects to /urls/:shortURL
+  res.redirect(`/urls/${shortUrl}`);
 });
 
+// Landing on /urls, displays list of all short URLS. Uses the urls_index.ejs template
 app.get("/urls", (req, res) => {
   let templateVars = { urls: urlDatabase };
   res.render("urls_index", templateVars);
 });
 
+// Directs to page and displays a short URL link
 app.get("/urls/:shortURL", (req, res) => {
-  let templateVars = { shortURL: req.params.shortURL, longURL: req.params.longURL };
+  let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
   res.render("urls_show", templateVars);
+});
+
+// Directs to page of actual/long version of URL ex. www.google.com
+app.get("/u/:shortURL", (req, res) => {
+  const longURL = urlDatabase[req.params.shortURL];
+  res.redirect(longURL);
 });
