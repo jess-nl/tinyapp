@@ -20,7 +20,7 @@ function generateRandomString() {
   let char = '0123456789abcdefghijklmnopqrstuvwxyz';
   
   for (let i = 0; i < 6; i++) {
-    randomCharacters += char.charAt(Math.floor(Math.random() * char.length));
+    randomCharacters += char.charAt(Math.random() * char.length);
   }
   return randomCharacters;
 }
