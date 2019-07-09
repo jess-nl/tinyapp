@@ -54,7 +54,7 @@ app.post("/urls", (req, res) => {
   console.log(req.body);
   let shortUrl = generateRandomString();
   urlDatabase[shortUrl] = req.body.longURL;
-  console.log(urlDatabase);
+  console.log("urlDatabase:", urlDatabase);
 
   // Redirects to /urls/:shortURL
   res.redirect(`/urls/${shortUrl}`);
@@ -75,5 +75,14 @@ app.get("/urls/:shortURL", (req, res) => {
 // Directs to page of actual/long version of URL ex. www.google.com
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
+  console.log("longURL:", longURL);
   res.redirect(longURL);
+});
+
+app.post('/urls/:id/delete', (req, res) => {
+  const { id } = req.params;
+
+  delete urlDatabase[id];
+
+  res.redirect('/urls');
 });
