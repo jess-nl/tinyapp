@@ -1,3 +1,4 @@
+const cookieParser = require("cookie-parser")
 const bodyParser = require("body-parser");
 const express = require("express");
 const app = express();
@@ -5,6 +6,7 @@ const PORT = 8080;
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
+app.use(cookieParser());
 
 // Listen to PORT on 8080
 app.listen(PORT, () => {
@@ -45,7 +47,8 @@ app.get("/hello", (req, res) => {
 
 // Landing on /urls/new, displays template of urls_new.ejs
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new");
+  let templateVars = { username: req.cookies["username"] };
+  res.render("urls_new", templateVars);
 });
 
 // Generate short URL based on the function generateRandomString(), then redirect.
@@ -60,15 +63,16 @@ app.post("/urls", (req, res) => {
   res.redirect(`/urls/${shortUrl}`);
 });
 
-// Landing on /urls, displays list of all short URLS. Uses the urls_index.ejs template
+// Landing on /urls, displays username at the very top & a list of short URLS in a column
+// Uses the urls_index.ejs template
 app.get("/urls", (req, res) => {
-  let templateVars = { urls: urlDatabase };
+  let templateVars = { urls: urlDatabase, username: req.cookies["username"] };
   res.render("urls_index", templateVars);
 });
 
 // Directs to page and displays a short URL link
 app.get("/urls/:shortURL", (req, res) => {
-  let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
+  let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], username: req.cookies["username"] };
   res.render("urls_show", templateVars);
 });
 
@@ -95,5 +99,22 @@ app.post('/urls/:id', (req, res) => {
   urlDatabase[id] = req.body.longURL;
   console.log("req.body: ", req.body)
 
+  res.redirect('/urls');
+});
+
+// Login route
+app.post("/login", (req, res) => {
+  const { id } = req.body.username;
+  console.log("req.body from login: ", req.body.username);
+
+  res.cookie('username', req.body.username);
+  res.redirect('/urls');
+});
+
+// Logout route
+app.post("/logout", (req, res) => {
+  // const { id } = req.body.username;
+
+  res.clearCookie('username', req.body.username)
   res.redirect('/urls');
 });
