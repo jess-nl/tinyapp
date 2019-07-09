@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "./node_modules/.bin/nodemon -L express_server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -11,7 +12,7 @@
     "url": "git+https://github.com/jess-nl/tinyapp.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "Jess Noriega-Lessard",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/jess-nl/tinyapp/issues"
@@ -21,5 +22,8 @@
     "body-parser": "^1.19.0",
     "ejs": "^2.6.2",
     "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "nodemon": "^1.19.1"
   }
 }
