@@ -11,12 +11,11 @@
         <a class="nav-item nav-link" href="/urls">My URLs</a>
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
 
-        <% if (!username) { %>
-          <form method="POST" action="/login">
-          <input id="username" type="text" name="username" placeholder="Enter Username" style="width: 300px; margin-left: 1rem; margin-right: 1rem;">
-          <input type="submit" class="btn btn-light" value="login"></form>
+        <% if (!user) { %>
+          <a class="nav-item nav-link" href="/login">Login</a>
+          <a class="nav-item nav-link" href="/registration">Registration</a>
         <% } else { %>
-          <strong style="color: #FFF; margin: 0.5rem 1rem;">Logged in as: <%= username %>!</strong>
+          <strong style="color: #FFF; margin: 0.5rem 1rem;">Logged in as: <%= user.email %>!</strong>
           <form method="POST" action="/logout">
           <input type="submit" class="btn btn-light" value="logout"></form>
         <% } %>
