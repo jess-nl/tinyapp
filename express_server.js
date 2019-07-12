@@ -4,6 +4,8 @@ const express = require("express");
 const app = express();
 const PORT = 8080;
 
+const bcrypt = require('bcrypt');
+
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 app.use(cookieParser());
@@ -85,9 +87,7 @@ app.get('/registration', function (req, res) {
 app.post("/registration", (req, res) => {
   let email = req.body.email;
   let password = req.body.password;
-
-  console.log("User's email:", req.body.email);
-  console.log("User's password:", req.body.password);
+  const hashedPassword = bcrypt.hashSync(password, 10);
 
   if (email === "" || password === "") {
     res.status(403).end();
@@ -107,7 +107,7 @@ app.post("/registration", (req, res) => {
 
     // Generate unique user ID & add it to user database
     let newId = `user${generateRandomString()}RandomID`;
-    const newUser = { id: newId, email, password };
+    const newUser = { id: newId, email, hashedPassword };
     users[newId] = newUser;
 
     // Generate cookie
@@ -135,6 +135,7 @@ app.get('/login', function (req, res) {
 app.post("/login", (req, res) => {
   let email = req.body.email;
   let password = req.body.password;
+  const hashedPassword = bcrypt.hashSync(password, 10);
 
   // If email and password inputs are left blank
   if (email === "" || password === "") {
@@ -148,8 +149,9 @@ app.post("/login", (req, res) => {
     if (email === users[key].email) {
       currentUser = users[key];
       // If password already exists
-      if (password === currentUser.password) {
-        // Generate cookie
+      // if (password === currentUser.password) {
+      if (bcrypt.compareSync(currentUser.password, hashedPassword)) {
+          // Generate cookie
         res.cookie('user_id', currentUser.id);
         // Redirect to main page
         res.redirect('/urls');
@@ -160,7 +162,6 @@ app.post("/login", (req, res) => {
       }
     }
   }
-  console.log('Wrong email or password! Must submit the right information or register!');
   // Assign to error page
   res.status(403).end();
 });
