@@ -17,13 +17,13 @@ app.listen(PORT, () => {
 // ==================== Databases =====================
 // ====================================================
 
-// Database for the creation of all URLs
+// Initial Tiny URLs database
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  "b2xVn2": { longURL: "http://www.lighthouselabs.ca", userID: "aJ48lW" },
+  "9sm5xK": { longURL: "http://www.google.com", userID: "aJ48lW" }
 };
 
-// Store our users
+// Initial users database
 const users = { 
   "user1RandomID": {
     id: "user1RandomID", 
@@ -41,7 +41,7 @@ const users = {
 // ================ Global functions ==================
 // ====================================================
 
-// Generate random characters for short URL
+// Generate random characters for Tiny URLs & unique user IDs
 const generateRandomString = function() {
   let randomCharacters = '';
   let char = '0123456789abcdefghijklmnopqrstuvwxyz';
@@ -52,84 +52,28 @@ const generateRandomString = function() {
   return randomCharacters;
 };
 
+// Returns URLs where the userID of urlDatabase() is equal to the id of the currently logged in user of users(), passed into templateVars
+const urlsForUser = function(id) {
+  let userAthenticate = {};
+  for (let key in urlDatabase) {
+    if (urlDatabase[key].userID === id) {
+      userAthenticate[key] = urlDatabase[key];
+    }
+  }
+  return userAthenticate;
+}
+
 // ====================================================
-// ===================== Routing ======================
+// ====================== JSON ========================
 // ====================================================
 
-// Landing on index page, prints "Hello"
-app.get("/", (req, res) => {
-  res.send("Hello!");
-});
-
-// Convert to JSON string
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
 
-// Landing on /hello page, prints "Hello World"
-app.get("/hello", (req, res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
-});
-
-// Landing on /urls/new, displays template of urls_new.ejs
-app.get("/urls/new", (req, res) => {
-  let templateVars = { user: users[req.cookies["user_id"]] };
-  res.render("urls_new", templateVars);
-});
-
-// Generate short URL based on generateRandomString() function, then redirect.
-app.post("/urls", (req, res) => {
-  // Log the POST request body to the console
-  console.log(req.body);
-
-  let shortUrl = generateRandomString();
-  urlDatabase[shortUrl] = req.body.longURL;
-  console.log("urlDatabase:", urlDatabase);
-
-  // Redirects to /urls/:shortURL
-  res.redirect(`/urls/${shortUrl}`);
-});
-
-// Landing on /urls
-app.get("/urls", (req, res) => {
-  
-  let templateVars = { urls: urlDatabase, user: users[req.cookies["user_id"]]};
-  res.render("urls_index", templateVars);
-});
-
-// Directs to page and displays a short URL link
-app.get("/urls/:shortURL", (req, res) => {
-  let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[req.cookies["user_id"]] };
-  res.render("urls_show", templateVars);
-});
-
-// Directs to page of actual/long version of URL ex. www.google.com
-app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
-  console.log("longURL:", longURL);
-  res.redirect(longURL);
-});
-
-// Delete short URL from database
-app.post('/urls/:id/delete', (req, res) => {
-  const { id } = req.params;
-
-  delete urlDatabase[id];
-
-  res.redirect('/urls');
-});
-
-// Edit short URL from database or after the creation of a new short URL
-app.post('/urls/:id', (req, res) => {
-  const { id } = req.params;
-
-  urlDatabase[id] = req.body.longURL;
-  console.log("req.body: ", req.body)
-
-  res.redirect('/urls');
-});
-
-// ===================== Register =====================
+// ====================================================
+// ============== Registration route ==================
+// ====================================================
 
 // Registration landing
 app.get('/registration', function (req, res) {
@@ -148,10 +92,10 @@ app.post("/registration", (req, res) => {
   if (email === "" || password === "") {
     res.status(403).end();
   } else {
-    // Looking through each users
+    // Looking through each user
     for (const user in users) {
 
-      // Check if current email is already taken
+      // Check if email entry is already taken
       if (email === users[user].email) {
         console.log("Email already taken");
         res.status(403).end();
@@ -177,22 +121,20 @@ app.post("/registration", (req, res) => {
   console.log("User database:", users);
 });
 
-// ===================== Login =====================
+// ====================================================
+// =================== Login route ====================
+// ====================================================
 
 // Login landing
 app.get('/login', function (req, res) {
-  let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[req.cookies["user_id"]] };
+  let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[req.cookies["user_id"]], urls: urlsForUser(req.cookies["user_id"]) };
   res.render("urls_login", templateVars);
 });
 
-
 // Login existing user with email & password
 app.post("/login", (req, res) => {
-  // Log the POST request body to the console
   let email = req.body.email;
   let password = req.body.password;
-  console.log("User's email:", req.body.email);
-  console.log("User's password:", req.body.password);
 
   // If email and password inputs are left blank
   if (email === "" || password === "") {
@@ -226,5 +168,97 @@ app.post("/login", (req, res) => {
 // Logout route
 app.post("/logout", (req, res) => {
   res.clearCookie('user_id');
+  res.redirect('/urls');
+});
+
+// ====================================================
+// ============ Tiny URL main page route ==============
+// ====================================================
+
+// Landing on main page
+app.get("/urls", (req, res) => {
+
+  let templateVars = { urls: urlsForUser(req.cookies["user_id"]), user: users[req.cookies["user_id"]]};
+  res.render("urls_index", templateVars);
+});
+
+// ====================================================
+// ============ Tiny URL (create) route ===============
+// ====================================================
+
+// Landing on page to create Tiny URL. Only accessible when logged in.
+app.get("/urls/new", (req, res) => {
+  if (req.cookies['user_id']) {
+    let templateVars = { user: users[req.cookies["user_id"]] };
+    res.render("urls_new", templateVars);
+  } else {
+    res.redirect('/login');
+  }
+});
+
+// Generate Tiny URLs and list them on main page
+app.post("/urls", (req, res) => {
+  // Log URL database
+  console.log("urlDatabase:", urlDatabase);
+
+  let shortUrl = generateRandomString();
+  urlDatabase[shortUrl] = {};
+  urlDatabase[shortUrl].longURL = req.body.longURL;
+  urlDatabase[shortUrl].userID = req.cookies["user_id"];
+
+  res.redirect(`/urls/${shortUrl}`);
+});
+
+// ====================================================
+// ====== Tiny URL's ID route (once created) ==========
+// ====================================================
+
+// Displays Tiny URL if it's associated to current logged in user (can update it too).
+app.get("/urls/:shortURL", (req, res) => {
+
+  if (urlDatabase[req.params.shortURL].userID !== req.cookies["user_id"]) {
+    res.redirect('/login');
+  }
+
+  let templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[req.cookies["user_id"]], urls : urlDatabase};
+  res.render("urls_show", templateVars);
+});
+
+// ====================================================
+// ===== Tiny URL (directs to requested URL page) =====
+// ====================================================
+
+// Directs to requested URL page of long version of URL (ex. www.google.com)
+app.get("/u/:shortURL", (req, res) => {
+  const {longURL} = urlDatabase[req.params.shortURL];
+  res.redirect(longURL);
+});
+
+// ====================================================
+// ============== Tiny URL (edit) route ===============
+// ====================================================
+
+// Edit Tiny URL from database or after the creation of a new Tiny URL
+app.post('/urls/:id', (req, res) => {
+  const { id } = req.params;
+
+  if (!req.cookies['user_id']) {
+    res.redirect('/login');
+  }
+
+  urlDatabase[id] = {longURL: req.body.longURL, userID: req.cookies['user_id']};
+
+  res.redirect('/urls');
+});
+
+// ====================================================
+// ============= Tiny URL (delete) route ==============
+// ====================================================
+
+// Delete Tiny URL
+app.post('/urls/:id/delete', (req, res) => {
+  const { id } = req.params;
+  delete urlDatabase[id];
+
   res.redirect('/urls');
 });

@@ -16,6 +16,10 @@
 
   <form class="d-flex justify-content-center" action='' method="POST" style="padding-top: 4rem;">
     <fieldset>
+      <% if (user && urls !== user) { %>
+        <h3 style="padding-bottom: 1rem;">Login to the associated user <br>to access this Tiny URL!</h3>
+      <% } %>
+
       <div>
         <h1>Login</h1>
       </div>
