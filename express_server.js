@@ -5,6 +5,7 @@ const app = express();
 const { getUserByEmail } = require('./helper');
 const PORT = 8080;
 const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
@@ -16,7 +17,6 @@ app.use(cookieSession({
 
 // Listen to PORT on 8080
 app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}!`);
 });
 
 // ====================================================
@@ -29,17 +29,21 @@ const urlDatabase = {
   "9sm5xK": { longURL: "http://www.google.com", userID: "aJ48lW" }
 };
 
+// Initial users' passwords in hash form
+const passwordForUser1 = bcrypt.hashSync('purple-monkey-dinosaur', saltRounds);
+const passwordForUser2 = bcrypt.hashSync('dishwasher-funk', saltRounds);
+
 // Initial users database
-const users = { 
+const users = {
   "user1RandomID": {
     id: "user1RandomID",
-    email: "user@example.com", 
-    password: "purple-monkey-dinosaur"
+    email: "user@example.com",
+    password: passwordForUser1
   },
- "user2RandomID": {
-    id: "user2RandomID", 
-    email: "user2@example.com", 
-    password: "dishwasher-funk"
+  "user2RandomID": {
+    id: "user2RandomID",
+    email: "user2@example.com",
+    password: passwordForUser2
   }
 };
 
@@ -67,7 +71,7 @@ const urlsForUser = function(id) {
     }
   }
   return userAuthenticate;
-}
+};
 
 // ====================================================
 // ====================== JSON ========================
@@ -82,31 +86,35 @@ app.get("/urls.json", (req, res) => {
 // ====================================================
 
 // Registration landing
-app.get('/registration', function (req, res) {
+app.get('/register', function(req, res) {
   let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[req.session.user_id] };
   res.render("urls_registration", templateVars);
 });
 
 // Add new user's email & password in database & generate new cookie.
 // If blank or already existing email/password, redirect.
-app.post("/registration", (req, res) => {
+app.post("/register", (req, res) => {
   let email = req.body.email;
   let password = req.body.password;
   const hashedPassword = bcrypt.hashSync(password, 10);
   let currentUser = getUserByEmail(email, users);
 
-  if (email === "" || password === "") {
-    res.redirect('/404');
-  } else if (currentUser) {
-    res.redirect('/404');
-  } else {
-    // Generate unique user ID & add it to user database
-    let newId = `user${generateRandomString()}RandomID`;
-    const newUser = { id: newId, email, hashedPassword };
-    users[newId] = newUser;
+  if (!req.session.user_id) {
+    if (email === "" || password === "") {
+      res.redirect('/404');
+    } else if (currentUser) {
+      res.redirect('/404');
+    } else {
+      // Generate unique user ID & add it to user database
+      let newId = `user${generateRandomString()}RandomID`;
+      const newUser = { id: newId, email, password: hashedPassword };
+      users[newId] = newUser;
 
-    req.session.user_id = newId;
-    res.redirect('/urls');
+      req.session.user_id = newId;
+      res.redirect('/urls');
+    }
+  } else {
+    res.redirect('/404');
   }
 });
 
@@ -115,8 +123,10 @@ app.post("/registration", (req, res) => {
 // ====================================================
 
 // Login landing
-app.get('/login', function (req, res) {
+app.get('/login', function(req, res) {
+
   let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[req.session.user_id], urls: urlsForUser(req.session.user_id) };
+
   res.render("urls_login", templateVars);
 });
 
@@ -124,16 +134,19 @@ app.get('/login', function (req, res) {
 app.post("/login", (req, res) => {
   let email = req.body.email;
   let password = req.body.password;
-  const hashedPassword = bcrypt.hashSync(password, 10);
 
   // If email & password already exists, generate cookie. Otherwise assign error page
   let currentUser = getUserByEmail(email, users);
 
-  if (email === "" || password === "") {
-    if (currentUser) {
-      if (bcrypt.compareSync(currentUser.password, hashedPassword)) {
-        req.session.user_id = currentUser.id;
-        res.redirect('/urls');
+  if (!req.session.user_id) {
+    if (!(email === "") || !(password === "")) {
+      if (currentUser) {
+        if (bcrypt.compareSync(password, currentUser.password)) {
+          req.session.user_id = currentUser.id;
+          res.redirect('/urls');
+        } else {
+          res.redirect('/404');
+        }
       } else {
         res.redirect('/404');
       }
@@ -145,7 +158,10 @@ app.post("/login", (req, res) => {
   }
 });
 
-// Logout route
+// ====================================================
+// =================== Logout route ===================
+// ====================================================
+
 app.post("/logout", (req, res) => {
   req.session = null;
   res.redirect('/urls');
@@ -159,17 +175,22 @@ app.post("/logout", (req, res) => {
 app.get("/urls", (req, res) => {
 
   let templateVars = { urls: urlsForUser(req.session.user_id), user: users[req.session.user_id]};
-  res.render("urls_index", templateVars);
+  if (req.session.user_id) {
+    res.render("urls_index", templateVars);
+  } else {
+    res.redirect('/login');
+  }
 });
 
 // ====================================================
-// ============ Tiny URL (create) route ===============
+// ============ Tiny URL route (create) ===============
 // ====================================================
 
 // Landing on page to create Tiny URL. Only accessible when logged in.
 app.get("/urls/new", (req, res) => {
+  let templateVars = { user: users[req.session.user_id] };
+
   if (req.session.user_id) {
-    let templateVars = { user: users[req.session.user_id] };
     res.render("urls_new", templateVars);
   } else {
     res.redirect('/login');
@@ -193,12 +214,16 @@ app.post("/urls", (req, res) => {
 // Displays Tiny URL if it's associated to current logged in user (can update it too).
 app.get("/urls/:shortURL", (req, res) => {
 
-  if (urlDatabase[req.params.shortURL].userID !== req.session.user_id) {
-    res.redirect('/login');
+  if (urlDatabase[req.params.shortURL]) {
+    let templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[req.session.user_id], urls : urlDatabase};
+    if (urlDatabase[req.params.shortURL].userID !== req.session.user_id) {
+      res.redirect('/login');
+    } else {
+      res.render("urls_show", templateVars);
+    }
+  } else {
+    res.redirect('/404');
   }
-
-  let templateVars = {shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[req.session.user_id], urls : urlDatabase};
-  res.render("urls_show", templateVars);
 });
 
 // ====================================================
@@ -207,36 +232,38 @@ app.get("/urls/:shortURL", (req, res) => {
 
 // Directs to requested URL page of long version of URL (ex. www.google.com)
 app.get("/u/:shortURL", (req, res) => {
-  const {longURL} = urlDatabase[req.params.shortURL];
-  res.redirect(longURL);
+  if (urlDatabase[req.params.shortURL]) {
+    const {longURL} = urlDatabase[req.params.shortURL];
+    res.redirect(longURL);
+  } else {
+    res.redirect('/404');
+  }
 });
 
 // ====================================================
-// ============== Tiny URL (edit) route ===============
+// ============== Tiny URL route (edit) ===============
 // ====================================================
 
 // Edit Tiny URL from database or after the creation of a new Tiny URL
 app.post('/urls/:id', (req, res) => {
   const { id } = req.params;
+  urlDatabase[id] = {longURL: req.body.longURL, userID: req.session.user_id};
 
   if (!req.session.user_id) {
     res.redirect('/login');
+  } else {
+    res.redirect('/urls');
   }
-
-  urlDatabase[id] = {longURL: req.body.longURL, userID: req.session.user_id};
-
-  res.redirect('/urls');
 });
 
 // ====================================================
-// ============= Tiny URL (delete) route ==============
+// ============= Tiny URL route (delete) ==============
 // ====================================================
 
 // Delete Tiny URL
 app.post('/urls/:id/delete', (req, res) => {
   const { id } = req.params;
   delete urlDatabase[id];
-
   res.redirect('/urls');
 });
 
@@ -245,7 +272,7 @@ app.post('/urls/:id/delete', (req, res) => {
 // ====================================================
 
 // 404 error page landing
-app.get('/404', function (req, res) {
+app.get('/404', function(req, res) {
   let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[req.session.user_id] };
   res.render("urls_404", templateVars);
 });
