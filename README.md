@@ -4,8 +4,9 @@ TinyApp is a full stack web application built with Node and Express that allows 
 
 ## Final Product
 
-!["screenshot description"](#)
-!["screenshot description"](#)
+!["Screenshot of URLs page once logged in"](https://github.com/jess-nl/tinyapp/blob/master/doc/urls_page_loggedin.png)
+!["Screenshot of login page"](https://github.com/jess-nl/tinyapp/blob/master/doc/login_page.png)
+!["Screenshot of registration page"](https://github.com/jess-nl/tinyapp/blob/master/doc/registration_page.png)
 
 ## Dependencies
 
@@ -20,3 +21,13 @@ TinyApp is a full stack web application built with Node and Express that allows 
 
 - Install all dependencies (using the `npm install` command).
 - Run the development web server using the `node express_server.js` command.
+
+## User Stories
+
+As a writer and Twitter user, I would like to fit as many text as possible in a tweet. However, URLs are often very long. 
+
+I have an idea!
+
+Perhaps I can shorten my URLs and display them in the tweet through Tiny App! I can also collect them in case I need them in the near future.
+
+This would allow my audience to visit the articles I publish. It would also allow them to share my articles around with the tiny URL I provided in my tweet.
