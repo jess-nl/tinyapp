@@ -2,8 +2,8 @@ const cookieSession = require('cookie-session');
 const bodyParser = require("body-parser");
 const express = require("express");
 const app = express();
+const { getUserByEmail } = require('./helper');
 const PORT = 8080;
-
 const bcrypt = require('bcrypt');
 
 app.use(bodyParser.urlencoded({extended: true}));
@@ -32,7 +32,7 @@ const urlDatabase = {
 // Initial users database
 const users = { 
   "user1RandomID": {
-    id: "user1RandomID", 
+    id: "user1RandomID",
     email: "user@example.com", 
     password: "purple-monkey-dinosaur"
   },
@@ -58,15 +58,15 @@ const generateRandomString = function() {
   return randomCharacters;
 };
 
-// Returns URLs where the userID of urlDatabase() is equal to the id of the currently logged in user of users(), passed into templateVars
+// Returns URLs to its associated user. This is passed into templateVars.
 const urlsForUser = function(id) {
-  let userAthenticate = {};
+  let userAuthenticate = {};
   for (let key in urlDatabase) {
     if (urlDatabase[key].userID === id) {
-      userAthenticate[key] = urlDatabase[key];
+      userAuthenticate[key] = urlDatabase[key];
     }
   }
-  return userAthenticate;
+  return userAuthenticate;
 }
 
 // ====================================================
@@ -87,42 +87,27 @@ app.get('/registration', function (req, res) {
   res.render("urls_registration", templateVars);
 });
 
-// Add new user's email & password in database
+// Add new user's email & password in database & generate new cookie.
+// If blank or already existing email/password, redirect.
 app.post("/registration", (req, res) => {
   let email = req.body.email;
   let password = req.body.password;
   const hashedPassword = bcrypt.hashSync(password, 10);
+  let currentUser = getUserByEmail(email, users);
 
   if (email === "" || password === "") {
-    res.status(403).end();
+    res.redirect('/404');
+  } else if (currentUser) {
+    res.redirect('/404');
   } else {
-    // Looking through each user
-    for (const user in users) {
-
-      // Check if email entry is already taken
-      if (email === users[user].email) {
-        console.log("Email already taken");
-        res.status(403).end();
-      }
-    }
-
-    // Log new user
-    console.log("Created new user!");
-
     // Generate unique user ID & add it to user database
     let newId = `user${generateRandomString()}RandomID`;
     const newUser = { id: newId, email, hashedPassword };
     users[newId] = newUser;
 
-    // Generate cookie
     req.session.user_id = newId;
-
-    // Redirect
     res.redirect('/urls');
   }
-
-  // Log user database
-  console.log("User database:", users);
 });
 
 // ====================================================
@@ -141,33 +126,23 @@ app.post("/login", (req, res) => {
   let password = req.body.password;
   const hashedPassword = bcrypt.hashSync(password, 10);
 
-  // If email and password inputs are left blank
-  if (email === "" || password === "") {
-    // Assign to error page
-    res.status(403).end();
-  }
+  // If email & password already exists, generate cookie. Otherwise assign error page
+  let currentUser = getUserByEmail(email, users);
 
-  let currentUser;
-  for (const key in users) {
-    // If email already exists
-    if (email === users[key].email) {
-      currentUser = users[key];
-      // If password already exists
-      // if (password === currentUser.password) {
+  if (email === "" || password === "") {
+    if (currentUser) {
       if (bcrypt.compareSync(currentUser.password, hashedPassword)) {
-        // Generate cookie
         req.session.user_id = currentUser.id;
-        // Redirect to main page
         res.redirect('/urls');
       } else {
-        console.log("Email and password not in system, must register!");
-        // Assign to error page
-        res.status(403).end();
+        res.redirect('/404');
       }
+    } else {
+      res.redirect('/404');
     }
+  } else {
+    res.redirect('/404');
   }
-  // Assign to error page
-  res.status(403).end();
 });
 
 // Logout route
@@ -203,9 +178,6 @@ app.get("/urls/new", (req, res) => {
 
 // Generate Tiny URLs and list them on main page
 app.post("/urls", (req, res) => {
-  // Log URL database
-  console.log("urlDatabase:", urlDatabase);
-
   let shortUrl = generateRandomString();
   urlDatabase[shortUrl] = {};
   urlDatabase[shortUrl].longURL = req.body.longURL;
@@ -266,4 +238,14 @@ app.post('/urls/:id/delete', (req, res) => {
   delete urlDatabase[id];
 
   res.redirect('/urls');
+});
+
+// ====================================================
+// ================= 404 error page ===================
+// ====================================================
+
+// 404 error page landing
+app.get('/404', function (req, res) {
+  let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[req.session.user_id] };
+  res.render("urls_404", templateVars);
 });
